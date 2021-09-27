@@ -81,7 +81,6 @@ impl Painter {
                     }
                     chunk_name_segments.push(format!("┃ {}", chunk.name));
                     chunk_name_segments.push(String::from("┓"));
-                    println!("chunk name segments: {:?}", chunk_name_segments);
                 }
             }
 
