@@ -29,7 +29,6 @@ impl Line {
 
 pub struct Painter {
     offset: usize,
-
 }
 
 impl Default for Painter {
@@ -106,7 +105,7 @@ impl Painter {
                             Some(curr) => {
                                 if curr.offset == index {
                                     hl_length = curr.length - 1;
-                                    hl_color = *curr.color;
+                                    hl_color = curr.color;
                                     current_highlight = hl_iterator.next();
                                 }
                             },
@@ -158,7 +157,7 @@ impl Painter {
             }
             // print out data highlights
             for hl in &chunk.highlights {
-                writeln!(output, "-- {}", paint(&hl.name, *hl.color))?;
+                writeln!(output, "-- {}", paint(&hl.name, hl.color))?;
             }
 
             //Empty line after chunk

@@ -1,4 +1,6 @@
-#[derive(Debug, Copy, Clone)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Colors {
     Red,
     Green,
@@ -7,6 +9,12 @@ pub enum Colors {
     Cyan,
     Magenta,
     Normal,
+}
+
+impl Default for Colors {
+  fn default() -> Self {
+    Colors::Normal
+  }
 }
 
   pub const COLOR_MAP: [Colors; 6] = [
