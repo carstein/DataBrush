@@ -59,7 +59,7 @@ impl Painter {
 
             // Prepare chunk name in reverse order
             let mut chunk_name_segments = vec!();
-            let lines_num = (chunk.len / 16) + 1;
+            let lines_num = (chunk.length / 16) + 1;
             match lines_num {
                 1 => {
                     chunk_name_segments.push(format!("] {}", chunk.name))
@@ -83,8 +83,11 @@ impl Painter {
                 }
             }
 
-            // Line loop - figure out break condition
-            while self.offset < (chunk.offset + chunk.len)  {
+            let mut hl_length = 0;
+            let mut hl_color = colors::Colors::Normal;
+            
+            // Line loop
+            while self.offset < (chunk.offset + chunk.length)  {
                 let mut current_line = Line::new();
                 current_line.address = self.offset & (usize::MAX << 4);
 
@@ -93,11 +96,10 @@ impl Painter {
                 // just a fragment (end of the chunk)
                 // or maybe start from the middle (star of new chunk)
                 let upper_bound = 
-                    cmp::min(chunk.offset + chunk.len - self.offset, 
+                    cmp::min(chunk.offset + chunk.length - self.offset, 
                             16 - (self.offset % 16));
                 
-                let mut hl_length = 0;
-                let mut hl_color = colors::Colors::Normal;
+
                 for index in self.offset..(self.offset + upper_bound) {
                     if hl_length == 0 {
                         hl_color = colors::Colors::Normal;

@@ -2,6 +2,7 @@ use crate::colors;
 use crate::errors;
 
 use serde::{Serialize, Deserialize};
+use serde_json;
 
 
 pub const MAX_FILE_LEN: usize = 10 * 1024 * 1024; // 10Mb
@@ -37,7 +38,7 @@ impl Highlight {
 pub struct Chunk {
   pub name: String,
   pub offset: usize,
-  pub len: usize,
+  pub length: usize,
   pub highlights: Vec<Highlight>,
 }
 
@@ -50,7 +51,7 @@ impl Chunk {
       Ok(Chunk { 
           name: chunk_name, 
           offset: 0, 
-          len: chunk_len, 
+          length: chunk_len, 
           highlights: vec!(),
       })
   }
@@ -60,15 +61,15 @@ impl Chunk {
       highlight.color = colors::COLOR_MAP[self.highlights.len() % 6];
 
       // Check for overlapping highlights
-      let lower_bound = highlight.offset;
-      let upper_bound = lower_bound + highlight.length;
+      let lower_band = highlight.offset;
+      let upper_band = lower_band + highlight.length;
 
       for hl in &self.highlights {
-          if lower_bound >= hl.offset && lower_bound < (hl.offset + hl.length) {
+          if lower_band >= hl.offset && lower_band < (hl.offset + hl.length) {
               return Err(errors::DataBrushErrors::HighlightOverlap);
           }
 
-          if upper_bound > hl.offset && upper_bound <= (hl.offset + hl.length) {
+          if upper_band > hl.offset && upper_band <= (hl.offset + hl.length) {
               return Err(errors::DataBrushErrors::HighlightOverlap);
           }
       }
@@ -103,17 +104,11 @@ impl Dataset {
       })
   }
 
-  pub fn from_json(template: Vec<u8>, data_set:Vec<u8>) -> Result<Dataset, errors::DataBrushErrors> {
+  pub fn from_json(template: Vec<u8>, data_set: Vec<u8>) -> Result<Dataset, errors::DataBrushErrors> {
       // read and parse template
     if template.is_empty() {
         return Err(errors::DataBrushErrors::EmptyTemplate)
     }
-
-    let mut dataset: Dataset = serde_json::from_slice(&template).unwrap();
-
-    // validate created dataset
-    dataset.validate()?;
-    dataset.assign_colors();
 
     // Add dataset
     if data_set.is_empty() {
@@ -124,22 +119,58 @@ impl Dataset {
         return Err(errors::DataBrushErrors::FileTooLarge) 
     }
 
+
+    let mut dataset: Dataset = serde_json::from_slice(&template).unwrap();
+    // attach data
+    dataset.data = data_set;
+
+    // validate created dataset
+    dataset.validate()?;
+
+    for chunk in dataset.chunks.iter_mut() {
+        for (index, hl) in chunk.highlights.iter_mut().enumerate() {
+            hl.color = colors::COLOR_MAP[index % 6];
+        }
+    }
+
     Ok(dataset)
   }
 
-  // TODO(carstein): Finish implementation
   fn validate(&self) -> Result<(), errors::DataBrushErrors> {
 
-    Ok(())
-  }
+    // Validating overlapping chunks
+    let mut lower_band = 0;
+    let upper_band = self.data.len();
 
-  // TODO(carstein): finish implementation
-  fn assign_colors(&mut self) {
     for chunk in &self.chunks {
-        for _hl in &chunk.highlights {
-            // iterate over highlights and set colors
+        if chunk.length == 0 {
+            return Err(errors::DataBrushErrors::ChunkSizeZero(chunk.name.clone()));
         }
+
+        if chunk.offset < lower_band || chunk.offset + chunk.length > upper_band {
+            println!("data[{}:{}] -> {}-{}", lower_band, upper_band, chunk.offset, chunk.offset + chunk.length);
+            return Err(errors::DataBrushErrors::ChunkOverflow)
+        }
+
+        // Check for overlapping highlights
+        let mut hl_lower_band = chunk.offset;
+        let hl_upper_band = hl_lower_band + chunk.length;
+
+        for hl in &chunk.highlights {
+            if hl.length == 0 {
+                return Err(errors::DataBrushErrors::HighlightSizeZero(hl.name.clone()))
+            }
+
+            if hl.offset < hl_lower_band || hl.offset + hl.length > hl_upper_band {
+                println!("chunk[{}:{}] -> {}-{}", hl_lower_band, hl_upper_band, hl.offset, hl.offset + hl.length);
+                return Err(errors::DataBrushErrors::HighlightOverlap);
+            }
+            hl_lower_band = hl.offset + hl.length;
+        }
+        lower_band = chunk.offset + chunk.length;
     }
+
+    Ok(())
   }
 
   pub fn add_chunk(&mut self, mut new_chunk: Chunk) -> Result<(), errors::DataBrushErrors> {
@@ -147,10 +178,10 @@ impl Dataset {
       let mut chunk_offset = 0;
 
       if let Some(chunk) = self.chunks.last() {
-          chunk_offset = chunk.offset + chunk.len;
+          chunk_offset = chunk.offset + chunk.length;
       }
 
-      if chunk_offset + new_chunk.len > self.data.len() {
+      if chunk_offset + new_chunk.length > self.data.len() {
           return Err(errors::DataBrushErrors::ChunkOverflow);
       }
 
@@ -170,12 +201,12 @@ impl Dataset {
 
   fn _last_chunk(&mut self, last_chunk_name: String) {
       let last = self.chunks.last().unwrap();
-      let chunk_len = last.len + last.offset;
+      let chunk_len = last.length + last.offset;
 
       self.chunks.push(Chunk {
           name: last_chunk_name, 
           offset: chunk_len,
-          len: self.data.len() - chunk_len,
+          length: self.data.len() - chunk_len,
           highlights: vec!(),
       });
   }
