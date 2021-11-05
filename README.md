@@ -5,59 +5,96 @@ In supports dividing data into chunks and highlighting certain elements of those
 
 ## Example
 
+Easiest way to use the library is to import the format definition from the `JSON' file.
+
 ```rust
-    let sample = fs::read("/home/carstein/sample").unwrap();
+// Load the file to display
+let sample = fs::read("/home/carstein/cample").unwrap();
 
-    let mut example1 = Dataset::new(String::from("Executable file"), sample).unwrap();
+// Read format from the json
+let format = fs::read("/home/carstein/elf_format.json").unwrap();
 
-    let mut chunk1 = match Chunk::new(String::from("elf header"), 52) {
-        Ok(v) => v,
-        Err(error) => panic!("Problem creating chunk: {:?}", error),
-    };
+// Create a data set by supplying format and data
+let example: Dataset = Dataset::from_json(format, sample).unwrap();
 
-    chunk1.set_highlight(
-        Highlight::new(String::from("signature"), 0, 4).unwrap()).unwrap();
-    chunk1.set_highlight(
-        Highlight::new(String::from("e_entry"), 24, 4).unwrap()).unwrap();
-    chunk1.set_highlight(
-        Highlight::new(String::from("e_phoff"), 28, 4).unwrap()).unwrap();
+// // Start painting
+let painter =  databrush::Painter::new();
+print!("{}", painter.prepare(&example).unwrap());
+```
 
+There is also a possibility to create a dataset manually, by calling relevant 
 
-    let chunk2 = match Chunk::new(String::from("program header table"), 32) {
-        Ok(v) => v,
-        Err(error) => panic!("Problem creating chunk: {:?}", error),
-    };
+```rust
+// Load the file to display
+let sample = fs::read("/home/carstein/sample").unwrap();
 
-    example1.add_chunk(chunk1).expect("Problem adding chunk");
-    example1.add_chunk(chunk2).expect("Problem adding chunk");
+let mut example1 = Dataset::new(String::from("Executable file"), sample).unwrap();
+
+// Define a new chunk of 52 bytes
+let mut chunk1 = match Chunk::new(String::from("elf header"), 52) {
+    Ok(v) => v,
+    Err(error) => panic!("Problem creating chunk: {:?}", error),
+};
+
+// Add three highlights to the data chunk 
+chunk1.set_highlight(
+    Highlight::new(String::from("signature"), 0, 4).unwrap()).unwrap();
+chunk1.set_highlight(
+    Highlight::new(String::from("e_entry"), 24, 4).unwrap()).unwrap();
+chunk1.set_highlight(
+    Highlight::new(String::from("e_phoff"), 28, 4).unwrap()).unwrap();
+
+// Define another chunk of 32 bytes
+let chunk2 = match Chunk::new(String::from("program header table"), 32) {
+    Ok(v) => v,
+    Err(error) => panic!("Problem creating chunk: {:?}", error),
+};
+
+// Add chunks to the dataset sequentionally (offset is calculated automatically)
+example1.add_chunk(chunk1).expect("Problem adding chunk");
+example1.add_chunk(chunk2).expect("Problem adding chunk");
     
-    // Start painting
-    let painter =  Painter::new();
-    let sketch = painter.prepare(&example1);
+// Start painting
+let painter =  Painter::new();
+let sketch = painter.prepare(&example1);
 ```
 
 This code will, if provided with an Elf file will display two chunks with three separate highlights.
-Like on an example below (of course Markdown does not preserve colors):
-```shell
-======== Executable file
-00000000┃ 7F 45 4C 46 01 01 01 00   00 00 00 00 00 00 00 00  ┓
-00000010┃ 02 00 03 00 01 00 00 00   F0 82 04 08 34 00 00 00  ┃ elf header
-00000020┃ 48 11 00 00 00 00 00 00   34 00 20 00 09 00 28 00  ┃
-00000030┃ 1E 00 1B 00                                        ┛
--- signature
--- e_entry
--- e_phoff
+Like on an example below:
+![Databrush sample](https://photos.app.goo.gl/Gc5zYNvkupxxDo3Q9)
 
-00000030┃             06 00 00 00   34 00 00 00 34 80 04 08  ┓
-00000040┃ 34 80 04 08 20 01 00 00   20 01 00 00 05 00 00 00  ┃ program header table
-00000050┃ 04 00 00 00                                        ┛
+## Format
+Databrush expect format to have fields like presented below.
+
+```json
+{
+  "name": "Executable file",
+  "chunks": [
+    {
+      "name": "elf header",
+      "offset": 0,
+      "length": 52,
+      "highlights": [
+        {
+          "name": "signature",
+          "offset": 0,
+          "length": 4
+        },
+      ]
+    }
+  ]
+}
 ```
+Important information is that offsets values are absolute and in relation to the entire data sample.
+
 
 ## Problems/Plans
+```text
  - [ ] Better documentation
- - [ ] Better error handling
+ - [X] Better error handling
  - [ ] Terminal color detection (right now it just assumes it works)
- - [ ] Complete Api for manual dataset creation (as for now chunks needs to be added sequentionaly)
- - [ ] Helper method to read data structure from JSON
+ - [X] Complete Api for manual dataset creation (as for now chunks needs to be added sequentionaly)
+ - [X] Helper method to read data structure from JSON
  - [ ] Support for dissecting bitfields
  - [ ] Optionally, raw data display (in addition to hex display)
+ ```
