@@ -61,7 +61,7 @@ let sketch = painter.prepare(&example1);
 
 This code will, if provided with an Elf file will display two chunks with three separate highlights.
 Like on an example below:
-[Databrush sample](https://i.imgur.com/eVg7RCu.png)
+![Databrush sample](https://i.imgur.com/eVg7RCu.png)
 
 ## Format
 Databrush expect format to have fields like presented below.
